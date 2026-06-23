@@ -11,6 +11,27 @@ This repository documents the local setup used on `PM-M9VL7XJKJ9`, based on the 
 - `claude-glm`: Claude Code routed to Z.AI GLM provider
 - `/fusion`: Claude slash command that fans out to `claude`, `claude-codex`, and `claude-glm`
 
+## Quick setup
+
+After cloning this repository, run:
+
+```bash
+./scripts/setup.sh
+```
+
+The setup flow is:
+
+1. Start CC Switch.
+2. Wait for the cc-switch DB.
+3. Ask you to complete Codex OAuth in CC Switch.
+4. Detect `~/.cc-switch/codex_oauth_auth.json`.
+5. Ask for the GLM API key with hidden input.
+6. Write/update the `codex-oauth` and `zai-glm` Claude providers.
+7. Set Claude's current cc-switch provider to `codex-oauth`.
+8. Approve the `PROXY_MANAGED` proxy sentinel for Claude Code.
+
+The GLM API key is not written to this repository. It is stored only in your local cc-switch DB.
+
 ## Important model behavior
 
 `claude-codex` follows the macmini pattern:
