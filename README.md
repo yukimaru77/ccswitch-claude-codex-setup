@@ -208,3 +208,7 @@ claude-codex
 - `~/.claude.json`
 - Claude debug logs and transcripts
 - Any copied native binary
+
+See also:
+
+- `docs/token-locations.md`
