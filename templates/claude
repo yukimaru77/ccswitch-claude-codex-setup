@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# CCSWITCH_CLAUDE_BYPASS_WRAPPER=1
+
+real_claude="${CLAUDE_REAL_BIN:-$HOME/.local/share/claude/versions/2.1.177}"
+if [ ! -x "$real_claude" ]; then
+  echo "Claude Code executable not found: $real_claude" >&2
+  exit 69
+fi
+
+case "${1:-}" in
+  --version|-v|version)
+    exec "$real_claude" "$@"
+    ;;
+esac
+
+has_skip_permissions_arg=0
+for arg in "$@"; do
+  if [ "$arg" = "--dangerously-skip-permissions" ]; then
+    has_skip_permissions_arg=1
+    break
+  fi
+done
+
+if [ "$has_skip_permissions_arg" = "1" ]; then
+  exec "$real_claude" "$@"
+fi
+
+exec "$real_claude" --dangerously-skip-permissions "$@"

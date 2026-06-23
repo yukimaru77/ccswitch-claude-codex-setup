@@ -18,6 +18,9 @@ CODEX_OAUTH_AUTH = HOME / ".cc-switch" / "codex_oauth_auth.json"
 CLAUDE_JSON = HOME / ".claude.json"
 CCSWITCH_APP = Path("/Applications/CC Switch.app")
 CCSWITCH_BIN = CCSWITCH_APP / "Contents" / "MacOS" / "cc-switch"
+LOCAL_BIN = HOME / ".local" / "bin"
+CLAUDE_BIN = LOCAL_BIN / "claude"
+DEFAULT_CLAUDE_REAL = HOME / ".local" / "share" / "claude" / "versions" / "2.1.177"
 
 
 def info(message: str) -> None:
@@ -335,6 +338,80 @@ def approve_proxy_managed() -> None:
     CLAUDE_JSON.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
 
 
+def resolve_real_claude() -> Path:
+    if CLAUDE_BIN.is_symlink():
+        target = os.readlink(CLAUDE_BIN)
+        target_path = Path(target)
+        if not target_path.is_absolute():
+            target_path = CLAUDE_BIN.parent / target_path
+        if target_path.exists():
+            return target_path
+    if DEFAULT_CLAUDE_REAL.exists():
+        return DEFAULT_CLAUDE_REAL
+    real_backup = LOCAL_BIN / "claude.real"
+    if real_backup.exists():
+        return real_backup
+    raise SystemExit(
+        "Claude Code binary was not found. Install 2.1.177 first:\n"
+        "  ./scripts/install-claude-2.1.177.sh"
+    )
+
+
+def install_plain_claude_wrapper() -> None:
+    real_claude = resolve_real_claude()
+    LOCAL_BIN.mkdir(parents=True, exist_ok=True)
+
+    if CLAUDE_BIN.exists() and not CLAUDE_BIN.is_symlink():
+        try:
+            content = CLAUDE_BIN.read_text(errors="ignore")
+        except OSError:
+            content = ""
+        if "CCSWITCH_CLAUDE_BYPASS_WRAPPER=1" not in content:
+            backup = LOCAL_BIN / "claude.real"
+            if not backup.exists():
+                CLAUDE_BIN.rename(backup)
+                real_claude = backup
+
+    wrapper = f"""#!/usr/bin/env bash
+set -euo pipefail
+# CCSWITCH_CLAUDE_BYPASS_WRAPPER=1
+
+real_claude="${{CLAUDE_REAL_BIN:-{real_claude}}}"
+if [ ! -x "$real_claude" ]; then
+  echo "Claude Code executable not found: $real_claude" >&2
+  exit 69
+fi
+
+case "${{1:-}}" in
+  --version|-v|version)
+    exec "$real_claude" "$@"
+    ;;
+esac
+
+has_skip_permissions_arg=0
+for arg in "$@"; do
+  if [ "$arg" = "--dangerously-skip-permissions" ]; then
+    has_skip_permissions_arg=1
+    break
+  fi
+done
+
+if [ "$has_skip_permissions_arg" = "1" ]; then
+  exec "$real_claude" "$@"
+fi
+
+exec "$real_claude" --dangerously-skip-permissions "$@"
+"""
+    if CLAUDE_BIN.is_symlink() or not CLAUDE_BIN.exists():
+        try:
+            CLAUDE_BIN.unlink()
+        except FileNotFoundError:
+            pass
+    CLAUDE_BIN.write_text(wrapper)
+    CLAUDE_BIN.chmod(0o755)
+    info(f"Installed plain claude bypass wrapper at {CLAUDE_BIN}")
+
+
 def print_next_steps() -> None:
     print()
     print("Setup complete.")
@@ -350,6 +427,11 @@ def main() -> int:
     parser.add_argument("--db-timeout", type=int, default=60)
     parser.add_argument("--glm-model", default="glm-5.2")
     parser.add_argument("--glm-base-url", default="https://api.z.ai/api/anthropic")
+    parser.add_argument(
+        "--no-claude-wrapper",
+        action="store_true",
+        help="Do not replace ~/.local/bin/claude with a --dangerously-skip-permissions wrapper",
+    )
     args = parser.parse_args()
 
     require_command("sqlite3")
@@ -360,6 +442,8 @@ def main() -> int:
     configure_ccswitch(account_id, glm_key, args.glm_model, args.glm_base_url)
     update_ccswitch_settings()
     approve_proxy_managed()
+    if not args.no_claude_wrapper:
+        install_plain_claude_wrapper()
     print_next_steps()
     return 0
 

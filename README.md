@@ -6,7 +6,7 @@ This repository documents the local setup used on `PM-M9VL7XJKJ9`, based on the 
 
 ## Resulting commands
 
-- `claude`: normal Claude Code
+- `claude`: Claude Code with `--dangerously-skip-permissions` added by default
 - `claude-codex`: Claude Code routed through cc-switch local proxy to Codex OAuth
 - `claude-glm`: Claude Code routed to Z.AI GLM provider
 - `/fusion`: Claude slash command that fans out to `claude`, `claude-codex`, and `claude-glm`
@@ -29,8 +29,15 @@ The setup flow is:
 6. Write/update the `codex-oauth` and `zai-glm` Claude providers.
 7. Set Claude's current cc-switch provider to `codex-oauth`.
 8. Approve the `PROXY_MANAGED` proxy sentinel for Claude Code.
+9. Replace `~/.local/bin/claude` with a wrapper that calls the real 2.1.177 binary with `--dangerously-skip-permissions` by default.
 
 The GLM API key is not written to this repository. It is stored only in your local cc-switch DB.
+
+If you do not want the plain `claude` wrapper, run:
+
+```bash
+./scripts/setup.sh --no-claude-wrapper
+```
 
 ## Important model behavior
 
@@ -88,6 +95,7 @@ cd ~/ghq/github.com/yukimaru77/my-fusion-command
 
 This should install:
 
+- `~/.local/bin/claude`
 - `~/.local/bin/claude-codex`
 - `~/.local/bin/claude-glm`
 - `~/.local/bin/ccswitch-claude-run`
