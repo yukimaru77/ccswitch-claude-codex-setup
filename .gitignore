@@ -1,0 +1,8 @@
+.DS_Store
+*.log
+*.db
+*.sqlite
+*.bak
+*.local
+__pycache__/
+secrets/
